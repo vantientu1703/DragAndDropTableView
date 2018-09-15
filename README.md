@@ -2,10 +2,10 @@
 
 #Implement
 
-Conform delehate and add gesture to view:
+#Conform delehate and add gesture to view:
 
-self.tableView.mDelegate = self
-self.tableView.addGestureToView(mainView: self.view)
+#self.tableView.mDelegate = self
+#self.tableView.addGestureToView(mainView: self.view)
 
 Datasource
 func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
