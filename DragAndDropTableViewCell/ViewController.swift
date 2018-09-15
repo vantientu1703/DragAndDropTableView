@@ -11,6 +11,7 @@ import UIKit
 class ViewController: UIViewController {
 
     @IBOutlet weak var tableView: DragAndDropTableView!
+    private var dictHeights: [IndexPath: CGFloat] = [:]
     
     private var items: [[String]] = [["Section 0 cell 00", "Section 0 cell 01", "Section 0 cell 02", "Section 0 cell 03", "Section 0 cell 04", "Section 0 cell 05", "Section 0 cell 07", "Section 0 cell 08", "Section 0 cell 09", "Section 0 cell 10"], ["Section 1 cell 00", "Section 1 cell 01", "Section 1 cell 02", "Section 1 cell 03", "Section 1 cell 04", "Section 1 cell 05", "Section 1 cell 07", "Section 1 cell 08", "Section 1 cell 09", "Section 1 cell 10"]]
     
@@ -37,6 +38,18 @@ extension ViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         let arrs = items[section]
         return arrs.count
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 100
+    }
+    
+    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        return self.dictHeights[indexPath] ?? 150.0
+    }
+    
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        self.dictHeights[indexPath] = cell.frame.size.height
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -78,7 +91,7 @@ extension ViewController: UITableViewDataSource {
 }
 
 extension ViewController: DragAndDropTableViewDelegate {
-    func reoderDidEnded() {
+    func reorderDidEnded() {
         // Kết thúc reorder cells
         // TODO somethings
     }

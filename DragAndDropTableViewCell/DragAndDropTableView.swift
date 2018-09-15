@@ -5,10 +5,13 @@
 //  Created by van.tien.tu on 9/6/18.
 //  Copyright © 2018 van.tien.tu. All rights reserved.
 //
+
 import UIKit
+
 protocol DragAndDropTableViewDelegate: NSObjectProtocol {
-    func reoderDidEnded()
+    func reorderDidEnded()
 }
+
 class DragAndDropTableView: UITableView {
     
     private var cellSnapshot: UIView?
@@ -21,6 +24,7 @@ class DragAndDropTableView: UITableView {
     private let autoScrollThreshold: CGFloat = 30
     private let autoScrollMinVelocity: CGFloat = 60
     private let autoScrollMaxVelocity: CGFloat = 280
+    private var lastLocation: CGPoint?
     weak var mDelegate: DragAndDropTableViewDelegate?
     
     private func mapValue(_ value: CGFloat, inRangeWithMin minA: CGFloat, max maxA: CGFloat, toRangeWithMin minB: CGFloat, max maxB: CGFloat) -> CGFloat {
@@ -69,18 +73,16 @@ class DragAndDropTableView: UITableView {
             self.destinationIndexPath = indexPath
             self.sourceIndexPath = indexPath
             self.cellSnapshot  = snapshopOfCell(inputView: visibleCell)
-            var center = CGPoint(x: visibleCell.center.x, y: position.y)
-            self.cellSnapshot?.center = center
             self.cellSnapshot?.alpha = 0.0
             if let cellSnapshot = self.cellSnapshot {
                 self.mainView?.addSubview(cellSnapshot)
             }
             self.activateAutoScrollDisplayLink()
-            UIView.animate(withDuration: 0.0, animations: { () -> Void in
-                center.y = position.y
-                self.cellSnapshot?.center = center
-                self.cellSnapshot?.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
-                self.cellSnapshot?.alpha = 1
+            UIView.animate(withDuration: 0.3, animations: { () -> Void in
+                let scale = CGAffineTransform.identity.scaledBy(x: 1.05, y: 1.05)
+                let rotate = CGAffineTransform.identity.rotated(by: .pi / 36)
+                self.cellSnapshot?.transform = scale.concatenating(rotate)
+                self.cellSnapshot?.alpha = 0.8
                 visibleCell.alpha = 0.0
                 
             }, completion: { (finished) -> Void in
@@ -94,7 +96,8 @@ class DragAndDropTableView: UITableView {
     private func movingCell(at position: CGPoint) {
         if let cellSnapShot = self.cellSnapshot {
             var center = cellSnapShot.center
-            center.y = position.y
+            center.y += self.translationY(position)
+            self.lastLocation = position
             cellSnapShot.center = center
         }
         guard let visibleCell = self.visibleCell(at: position) else { return }
@@ -119,7 +122,8 @@ class DragAndDropTableView: UITableView {
     }
     
     private func endedMovingCell(at position: CGPoint) {
-        self.mDelegate?.reoderDidEnded()
+        self.lastLocation = nil
+        self.mDelegate?.reorderDidEnded()
         guard let destinationIndexPath = self.destinationIndexPath else {
             self.removeData()
             return
@@ -128,24 +132,38 @@ class DragAndDropTableView: UITableView {
             self.removeData()
             return
         }
-        cell.isHidden = false
         cell.alpha = 0.0
-        UIView.animate(withDuration: 0.25, animations: { () -> Void in
-            self.cellSnapshot?.frame = self.convert(cell.frame, to: self.mainView)
-            self.cellSnapshot?.transform = CGAffineTransform.identity //CGAffineTransformIdentity
-            self.cellSnapshot?.alpha = 0.0
-            cell.alpha = 1.0
+        cell.isHidden = false
+        UIView.animate(withDuration: 0.4, animations: { () -> Void in
+            var center = self.cellSnapshot?.center
+            let rect = cell.convert(cell.bounds, to: self.mainView)
+            center?.y = rect.origin.y + rect.height / 2
+            if let ct = center {
+                self.cellSnapshot?.center = ct
+            }
+            self.cellSnapshot?.transform = CGAffineTransform.identity
             self.clearAutoScrollDisplayLink()
         }, completion: { (finished) -> Void in
             if finished {
+                self.reloadData()
+                cell.alpha = 1.0
+                self.cellSnapshot?.alpha = 0.0
                 self.removeData()
             }
         })
     }
     
+    private func translationY(_ location: CGPoint) -> CGFloat {
+        if let lastLocation = self.lastLocation {
+            return location.y - lastLocation.y
+        } else {
+            return 0
+        }
+    }
+    
     private func visibleCell(at position: CGPoint) -> UITableViewCell? {
         for cell in self.visibleCells {
-            let standardFrame = self.convert(cell.frame, to: self.mainView)
+            let standardFrame = cell.convert(cell.bounds, to: self.mainView)
             if standardFrame.contains(position) == true {
                 return cell
             }
@@ -171,17 +189,19 @@ class DragAndDropTableView: UITableView {
     }
     
     private func snapshopOfCell(inputView: UIView) -> UIView {
-        UIGraphicsBeginImageContextWithOptions(inputView.bounds.size, false, 0.0)
+        UIGraphicsBeginImageContextWithOptions(inputView.bounds.size, false, 0)
         inputView.layer.render(in: UIGraphicsGetCurrentContext()!)
         let image = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         let cellSnapshot : UIView = UIImageView(image: image)
         cellSnapshot.layer.masksToBounds = false
-        cellSnapshot.layer.cornerRadius = 0.0
-        cellSnapshot.layer.shadowOffset = CGSize(width: -5.0, height: 0.0) //CGSizeMake(-5.0, 0.0)
+        cellSnapshot.layer.cornerRadius = 8.0
+        cellSnapshot.layer.shadowOffset = CGSize(width: 0.0, height: 0.0)
         cellSnapshot.layer.shadowRadius = 2.0
-        cellSnapshot.layer.shadowOpacity = 0.4
-        cellSnapshot.frame = self.convert(inputView.frame, to: self.mainView)
+        cellSnapshot.layer.shadowOpacity = 0.3
+        cellSnapshot.layer.shadowColor = UIColor.gray.cgColor
+        cellSnapshot.frame = inputView.convert(inputView.bounds, to: self.mainView)
+        
         return cellSnapshot
     }
     
@@ -238,6 +258,18 @@ class DragAndDropTableView: UITableView {
                 }
                 self.contentOffset = CGPoint(x: contentOffset.x, y: newOffsetY)
             }
+            let contentInset: UIEdgeInsets
+            if #available(iOS 11, *) {
+                contentInset = self.adjustedContentInset
+            } else {
+                contentInset = self.contentInset
+            }
+            
+            let minContentOffset = -contentInset.top
+            let maxContentOffset = self.contentSize.height - self.bounds.height + contentInset.bottom
+            
+            self.contentOffset.y = min(self.contentOffset.y, maxContentOffset)
+            self.contentOffset.y = max(self.contentOffset.y, minContentOffset)
         }
         lastAutoScrollTimeStamp = displayLink.timestamp
     }

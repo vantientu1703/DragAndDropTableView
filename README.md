@@ -4,12 +4,24 @@
 
 #Conform delehate and add gesture to view:
 
-#self.tableView.mDelegate = self
+self.tableView.mDelegate = self
+//If you have self-resizing table view cell, need to implement
 
-#self.tableView.addGestureToView(mainView: self.view)
+self.tableView.rowHeight = CGFloat #0
 
-Datasource
+self.tableView.addGestureToView(mainView: self.view)
+
+#In UITableViewCell, we implement prepareForReuse():
+
+override func prepareForReuse() {
+
+    self.isHidden = false
+}
+
+#Datasource
+
 func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
+    
     var sourceStrings = items[sourceIndexPath.section]
     let  sourceString = sourceStrings[sourceIndexPath.row]
     if sourceIndexPath.section == destinationIndexPath.section {
@@ -29,10 +41,22 @@ func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, t
     }
 }
 
+//If use self-resizing table view cell
 
-mDelegate
+func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+
+    return self.viewModel.dictHeights[indexPath] ?? 150.0
+}
+
+func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+
+    self.viewModel.dictHeights[indexPath] = cell.frame.size.height
+}
+
+#mDelegate
 
 extension ViewController: DragAndDropTableViewDelegate {
+    
     func reoderDidEnded() {
         // Kết thúc reorder cells
         // TODO somethings
