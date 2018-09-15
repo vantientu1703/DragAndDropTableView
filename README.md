@@ -5,6 +5,7 @@
 #Conform delehate and add gesture to view:
 
 #self.tableView.mDelegate = self
+
 #self.tableView.addGestureToView(mainView: self.view)
 
 Datasource
